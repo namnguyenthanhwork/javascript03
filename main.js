@@ -1,7 +1,4 @@
-const $ = document.querySelector.bind(document);
-const $$ = document.querySelectorAll.bind(document);
-
-var tableCustomer = {
+const tableCustomer = {
   JSONData: [
     {
       Name: 'Otto Clay',
@@ -716,8 +713,6 @@ var tableCustomer = {
     { Name: 'Russia', Id: 7 },
   ],
 
-  headTable: ['Name', 'Age', 'Address', 'Country', 'Is Married', '<i class="fa-solid fa-magnifying-glass"></i>'],
-
   sortBy: {
     Name: 0,
     Age: 0,
@@ -729,180 +724,796 @@ var tableCustomer = {
 
   dataShow: [],
   choosingItem: {},
-  bgChoosingItem: '',
-  editActive: 1,
-  size: 8,
-  page: 1,
-  startPage: 0,
+  bgchoosingItem: '',
+  editActive: 0,
+
+  // status checkbox
+  indeterminateCheckbox: 1, // 0: indeterminate = false, 1: indeterminate = true, 2: checkbox = true
+
+  // settings pagination
+  selectPageSize: [5, 7, 10, 15, 20, 25, 'All'],
+  currentPage: 1,
+  size: 5,
   totalRecord: 0,
-  totalPage: 10,
+  totalPage: 0,
 
-  init() {
-    this.dataShow = this.JSONData;
-    // this.renderSearchRow();
-    // this.loadData();
-    this.renderData();
+  // choose html tag generator table
+  rootElement: null,
+
+  setRootElementRender(containerId) {
+    let containerElement = document.querySelector(containerId);
+    this.rootElement = containerElement;
   },
 
-  setSelectPage(page) {
-    const start = this.size * (page - 1);
-    const end = start + this.size;
-    this.dataShow = this.JSONData.slice(start, end);
+  renderTableLayout() {
+    let tableLayout = document.createElement('table');
+    let thead = document.createElement('thead');
+    let tbody = document.createElement('tbody');
+
+    tableLayout.className = 'table table-responsive-lg table-collapse table-bordered table-hover table-vertical-middle';
+
+    tableLayout.appendChild(thead);
+    tableLayout.appendChild(tbody);
+    this.rootElement.appendChild(tableLayout);
   },
 
-  loadData(start, end) {
-    this.dataShow = this.JSONData;
+  renderSearchRow() {
+    let thead = this.rootElement.querySelector('thead');
+    let searchRow = document.createElement('tr');
+    let countryDropdown = this.countryData
+      .map((item) => {
+        return `<option value=${item.Id}>${item.Name}</option>`;
+      })
+      .join('');
+
+    let searchHTML = `
+        <tr>
+          <th><input type="text" class="name-field"></th>
+          <th><input type="number" class="age-field"></th>
+          <th>
+              <select name="country-field" class="country-field"></select>
+          </th>
+          <th><input type="text" class="address-field"></th>
+          <th><input type="checkbox" class="married-field"></th>
+          <th>
+            <button class="action-btn filter-btn">
+              <i class="fas fa-search"></i>
+            </button>
+            <button class="action-btn clear-filter-btn">
+              <i class="fas fa-filter"></i>
+            </button>
+          </th>
+        </tr>`;
+
+    searchRow.className = 'search-row hidden';
+    searchRow.innerHTML = searchHTML;
+
+    thead.appendChild(searchRow);
+    this.rootElement.querySelector('.search-row .married-field').indeterminate = true;
+    this.rootElement.querySelector('.search-row .country-field').innerHTML = countryDropdown;
+  },
+
+  renderAddRow() {
+    let addRow = document.createElement('tr');
+    let countryDropdown = this.countryData
+      .map((item) => {
+        return `<option value=${item.Id}>${item.Name}</option>`;
+      })
+      .join('');
+    let addHTML = `
+        <tr>
+          <th><input type="text" class="name-field"></th>
+          <th><input type="number" min=1 class="age-field"></th>
+          <th>
+              <select name="country-field" class="country-field"></select>
+          </th>
+          <th><input type="text" class="address-field"></th>
+          <th><input type="checkbox" class="married-field"></th>
+          <th>
+            <button class="action-btn confirm-add-btn">
+              <i class="fas fa-check"></i>
+            </button>
+            <button class="action-btn remove-add-btn">
+              <i class="fas fa-times"></i>
+            </button>
+          </th>
+        </tr>`;
+
+    addRow.className = 'add-row hidden';
+    addRow.innerHTML = addHTML;
+
+    this.rootElement.querySelector('thead').appendChild(addRow);
+    this.rootElement.querySelector('.add-row .country-field').innerHTML = countryDropdown;
   },
 
   renderHeadRow() {
-    let tableHead = '';
-    console.log(this.JSONData[0]);
-    Object.keys(this.JSONData[0]).forEach((key) => (tableHead += `<th>${key}</th>`));
-    tableHead += '<th><i class="fa-solid fa-magnifying-glass"></i></th>';
-    // return this.headTable
-    //   .map((item) => {
-    //     return `<th>${item}</th>`;
-    //   })
-    //   .join('');
-    return tableHead;
+    let thead = this.rootElement.querySelector('thead');
+    let headRow = document.createElement('tr');
+    let headNames = Object.keys(this.JSONData[0]);
+    let headHTML = '';
+
+    headNames.map((headItem) => {
+      headHTML += `
+          <th class="sort" data-sort=${headItem}>${headItem}
+            <button class="sort-icon hidden">
+              <i class="fas fa-caret-up"></i>
+            </button>
+          </th>`;
+    });
+
+    headHTML += `
+        <th>
+          <button class="search-btn action-btn"><i class="fa fa-search"></i></button>
+          <button class="add-btn action-btn"><i class="fas fa-plus"></i></button>
+        </th>`;
+
+    headRow.innerHTML = headHTML;
+    thead.appendChild(headRow);
   },
 
-  renderBody() {
-    return this.dataShow
-      .map((item, index) => {
-        return `
-              <tr>
-                <td>${item.Name}</td>
-                <td class="text-right">${item.Age}</td>
-                <td>${item.Address}</td>
-                <td class="text-center">${this.countryData[item.Country].Name}</td>
-                <td class="text-center">
-                    <input type="checkbox" name="" id="" ${item.Married ? 'checked' : null} disabled>
-                </td>
-                <td class="text-center">
-                    <button class="edit-btn action-btn">
-                      <i class="fa-solid fa-pencil"></i>
-                    </button>
-                    <button class="delete-btn action-btn">
-                      <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </td>
-              </tr>
+  renderSelectPageSize() {
+    let headActionHTML = `
+          <div class="head-action-container">
+            <span>Size per page: </span>
+            <select name="pagesize" id="pagesize" class="select-page-size">
+              ${this.selectPageSize
+                .map((option) => {
+                  return `<option value=${option}>${option}</option>`;
+                })
+                .join('')}
+            </select>
+          </div>
         `;
-      })
-      .join('');
+    this.rootElement.innerHTML = headActionHTML;
   },
 
-  renderData() {
-    const root = $('#root');
-    const htmlString = `
-      <table class="table table-responsive-lg table-collapse table-bordered table-hover table-vertical-middle">
-        <thead>
-            ${this.renderHeadRow()}
-        </thead>
+  renderPaginationLayout() {
+    const paginationContainer = document.createElement('div');
+    const pageSelectInfo = document.createElement('p');
+    const pages = document.createElement('ul');
 
-        <tbody id="tbody">
-            ${this.renderBody()}
-        </tbody>
-      </table>
-      
-      <div class="pagination">
-        <ul>
-        <li class="numb active">1</li>
-        <li class="numb">2</li>
-        <li class="numb">3</li>
-        <li class="numb">Next</li>
-        </ul>
-      </div>
-    `;
+    let pagiHtml = `
+        <li class="prev-btn hidden">&lt Prev</li>
+        <li>
+          <ul class="pages-list"></ul>
+        </li>
+        <li class="next-btn">Next &gt</li>
+        <li class="last-btn">Last</li>
+      `;
 
-    root.innerHTML = htmlString;
+    paginationContainer.className = 'pagination-container';
+    pageSelectInfo.className = 'page-info';
+    pages.className = 'pagination';
+
+    pages.innerHTML = pagiHtml;
+    paginationContainer.appendChild(pages);
+    paginationContainer.appendChild(pageSelectInfo);
+    this.rootElement.appendChild(paginationContainer);
+  },
+
+  renderPaginationNumber() {
+    this.totalPage = Math.ceil(this.dataShow.length / this.size);
+    let pageArr = this.handlePagination();
+    let totalPages = this.rootElement.querySelector('.page-info');
+    let pageNumberItems = this.rootElement.querySelector('.pages-list');
+    let pagiNumberHTML = '';
+
+    for (let i in pageArr) {
+      if (pageArr[i] == this.currentPage) {
+        pagiNumberHTML += `<li class='number-page active'>${pageArr[i]}</li>`;
+      } else if (pageArr[i] != '...') {
+        pagiNumberHTML += `<li class='number-page'>${pageArr[i]}</li>`;
+      } else {
+        pagiNumberHTML += `<li class='three-dots'>${pageArr[i]}</li>`;
+      }
+    }
+
+    totalPages.innerHTML = `Page ${this.currentPage} / ${this.totalPage}`;
+    pageNumberItems.innerHTML = pagiNumberHTML;
+  },
+
+  handlePagination() {
+    let currentPage = this.currentPage;
+    let lastPage = this.totalPage;
+    let delta = 1; // number links two side
+    let leftPage = currentPage - delta;
+    let rightPage = currentPage + delta + 1;
+    let range = [];
+    let rangeWithDots = [];
+    let itemInRange;
+
+    for (let i = 1; i <= lastPage; i += 1) {
+      if (i === 1 || i === lastPage || (i >= leftPage && i <= rightPage)) {
+        range.push(i);
+      } else if (i < leftPage) {
+        i = leftPage - 1;
+      } else if (i > rightPage) {
+        range.push(lastPage);
+        break;
+      }
+    }
+
+    range.forEach((i) => {
+      if (itemInRange) {
+        if (i - itemInRange === 2) {
+          rangeWithDots.push(itemInRange + 1);
+        } else if (i - itemInRange !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      itemInRange = i;
+    });
+
+    return rangeWithDots;
+  },
+
+  handleUIPageChange() {
+    const prevBtn = this.rootElement.querySelector('.pagination .prev-btn');
+    const nextBtn = this.rootElement.querySelector('.pagination .next-btn');
+    const lastBtn = this.rootElement.querySelector('.pagination .last-btn');
+
+    if (this.currentPage === 1) {
+      prevBtn.classList.add('hidden');
+    } else {
+      prevBtn.classList.remove('hidden');
+    }
+
+    if (this.currentPage === this.totalPage) {
+      nextBtn.classList.add('hidden');
+      lastBtn.classList.add('hidden');
+    } else {
+      nextBtn.classList.remove('hidden');
+      lastBtn.classList.remove('hidden');
+    }
+  },
+
+  loadPagination() {
+    this.renderPaginationNumber();
+    this.handleUIPageChange();
+  },
+
+  loadData() {
+    const start = this.size * (this.currentPage - 1);
+    const end = start + this.size < this.dataShow.length ? start + this.size : this.dataShow.length;
+    let dataShow = '';
+    let pagiContainer = this.rootElement.querySelector('.pagination-container');
+    let tbody = this.rootElement.querySelector('tbody');
+
+    if (this.dataShow.length > 0) {
+      pagiContainer.style.display = 'flex';
+
+      for (let i = start; i < end; i++) {
+        dataShow += `
+          <tr class="customer" data-customer="${i}">
+              <td>${this.dataShow[i].Name}</td>
+              <td class="text-center">${this.dataShow[i].Age}</td>
+              <td>
+                ${this.countryData[this.dataShow[i].Country].Name}
+              </td>
+              <td>${this.dataShow[i].Address}</td>
+              <td class="text-center">
+                  <input type="checkbox" name="married" id="married" ${
+                    this.dataShow[i].Married ? 'checked' : ''
+                  } disabled/>  
+              </td>
+              <td class="text-center">
+                <button class="action-btn edit-btn"><i class="fas fa-pencil-alt"></i></button>
+                <button class="action-btn delete-btn"><i class="fa fa-trash"></i></button>    
+              </td>
+          </tr>
+        `;
+      }
+    } else {
+      dataShow += `<p class="mt-3 text-center text-danger">No results found</p>`;
+      pagiContainer.style.display = 'none';
+    }
+
+    tbody.innerHTML = dataShow;
+  },
+
+  setDataShow(data) {
+    this.dataShow = data;
+  },
+
+  addEventOnInit() {
+    let tbody = this.rootElement.querySelector('tbody');
+    let pageSizeSelect = this.rootElement.querySelector('.select-page-size');
+    let pageDisplay = this.rootElement.querySelectorAll('.number-page');
+    let pageList = this.rootElement.querySelector('.pages-list');
+    let btnNext = this.rootElement.querySelector('.next-btn');
+    let btnPrevious = this.rootElement.querySelector('.prev-btn');
+    let btnLast = this.rootElement.querySelector('.last-btn');
+    let btnAdd = this.rootElement.querySelector('.add-btn');
+    let confirmAddBtn = this.rootElement.querySelector('.confirm-add-btn');
+    let removeAddBtn = this.rootElement.querySelector('.remove-add-btn');
+    let searchBtn = this.rootElement.querySelector('.search-btn');
+    let filterBtn = this.rootElement.querySelector('.filter-btn');
+    let clearFilterBtn = this.rootElement.querySelector('.clear-filter-btn');
+    let marriedField = this.rootElement.querySelector('.married-field');
+
+    removeAllActive = () => {
+      pageDisplay.forEach((pageItem) => {
+        pageItem.classList.remove('active');
+      });
+    };
+
+    addCurPageActive = () => {
+      for (let i in pageDisplay) {
+        if (pageDisplay[i].innerText == this.currentPage) {
+          pageDisplay[i].className = 'active number-page';
+          break;
+        }
+      }
+    };
+
+    resetEditActive = () => {
+      this.editActive = 0;
+    };
+
+    // onchage page size
+    pageSizeSelect.addEventListener('change', (e) => {
+      const pageSizeSelect = e.target.value;
+
+      if (pageSizeSelect === 'All') {
+        this.size = this.dataShow.length;
+        this.loadPagination();
+        this.loadData();
+      } else {
+        this.size = parseInt(pageSizeSelect);
+        this.currentPage = 1;
+        this.loadPagination();
+        this.loadData();
+      }
+
+      resetEditActive();
+    });
+
+    // show/hide toggle add new records
+    btnAdd.addEventListener('click', (e) => {
+      let addRow = this.rootElement.querySelector('.add-row');
+      let addIcon = e.target;
+      let searchBtn = this.rootElement.querySelector('.search-btn');
+
+      addRow.classList.toggle('hidden');
+      searchBtn.classList.toggle('hidden');
+
+      if (addIcon.className.includes('fa-plus')) {
+        addIcon.classList.add('fa-times');
+        addIcon.classList.remove('fa-plus');
+      } else {
+        addIcon.classList.remove('fa-times');
+        addIcon.classList.add('fa-plus');
+      }
+      resetEditActive();
+    });
+
+    // add new customer
+    confirmAddBtn.addEventListener('click', () => {
+      const addElement = this.rootElement.querySelector('.add-row');
+      this.handleAddCustomer(addElement);
+    });
+
+    // clear input add customer
+    removeAddBtn.addEventListener('click', () => {
+      const addElement = this.rootElement.querySelector('.add-row');
+      this.clearAddCustomer(addElement);
+    });
+
+    // click random page
+    pageList.addEventListener('click', (e) => {
+      if (!e.target.innerText.includes('...') && e.target.innerText != this.currentPage) {
+        removeAllActive();
+        resetEditActive();
+
+        this.currentPage = parseInt(e.target.innerText);
+        e.target.className = 'active number-page';
+
+        this.loadPagination();
+        this.loadData();
+      }
+    });
+
+    // click next page
+    btnNext.addEventListener('click', () => {
+      if (this.currentPage < this.totalPage) {
+        this.currentPage += 1;
+      }
+      resetEditActive();
+      removeAllActive();
+      addCurPageActive();
+      this.loadPagination();
+      this.loadData();
+    });
+
+    // click prev page
+    btnPrevious.addEventListener('click', () => {
+      if (this.currentPage > 1) {
+        this.currentPage -= 1;
+      }
+      resetEditActive();
+      removeAllActive();
+      addCurPageActive();
+      this.loadPagination();
+      this.loadData();
+    });
+
+    // click last page
+    btnLast.addEventListener('click', () => {
+      this.currentPage = this.totalPage;
+      resetEditActive();
+      removeAllActive();
+      pageDisplay[pageDisplay.length - 1].className = 'active number-page';
+      this.loadPagination();
+      this.loadData();
+    });
+
+    // delete customer
+    tbody.addEventListener('click', (e) => {
+      if (e.target.closest('.delete-btn')) {
+        let customerPosition = e.target.closest('.customer').dataset.customer;
+
+        this.deleteCustomer(customerPosition, this.currentPage);
+      }
+    });
+
+    // show/hide toggle filter
+    searchBtn.addEventListener('click', (e) => {
+      let addBtn = this.rootElement.querySelector('.add-btn');
+      let searchRow = this.rootElement.querySelector('.search-row');
+      let searchIcon = e.target;
+
+      searchRow.classList.toggle('hidden');
+      addBtn.classList.toggle('hidden');
+
+      if (searchIcon.className.includes('fa-search')) {
+        searchIcon.classList.add('fa-times');
+        searchIcon.classList.remove('fa-search');
+      } else {
+        searchIcon.classList.remove('fa-times');
+        searchIcon.classList.add('fa-search');
+      }
+      resetEditActive();
+    });
+
+    // filter customer
+    filterBtn.addEventListener('click', () => {
+      this.filterCustomer();
+    });
+
+    // sort by married (change status checkbox)
+    marriedField.addEventListener('click', (e) => {
+      const checkboxStatus = e.target;
+
+      switch (this.indeterminateCheckbox) {
+        case 0: {
+          this.indeterminateCheckbox = 1;
+          checkboxStatus.indeterminate = true;
+          break;
+        }
+        case 1: {
+          this.indeterminateCheckbox = 2;
+          checkboxStatus.indeterminate = false;
+          checkboxStatus.checked = true;
+          break;
+        }
+        case 2: {
+          this.indeterminateCheckbox = 0;
+          checkboxStatus.checked = false;
+          break;
+        }
+      }
+    });
+
+    // clear filter customer
+    clearFilterBtn.addEventListener('click', () => {
+      this.handleClearFilter();
+    });
+
+    // sort customer
+    this.rootElement.querySelector('thead tr').addEventListener('click', (e) => {
+      if (e.target.closest('.sort')) {
+        const element = e.target;
+        const fieldName = e.target.dataset.sort;
+
+        this.handleUISort(element, fieldName);
+        this.sortByField(fieldName);
+      }
+    });
+
+    // edit customer
+    tbody.addEventListener('click', (e) => {
+      const customerRowHTML = e.target.closest('.customer');
+      const isEditBtn = e.target.parentNode.className.includes('edit-btn');
+      const isRemoveEditBtn = e.target.parentNode.className.includes('remove-edit-btn');
+      const isConfirmEditBtn = e.target.parentNode.className.includes('confirm-edit-btn');
+
+      if (isEditBtn && !this.editActive) {
+        this.editActive = 1;
+        this.handleUIEdit(customerRowHTML);
+      }
+
+      if (isRemoveEditBtn && this.editActive) {
+        this.editActive = 0;
+        this.handleUIEdit(customerRowHTML, this.bgChoosingItem);
+      }
+
+      if (isConfirmEditBtn && this.editActive) {
+        this.editActive = 0;
+        this.handleEditCustomer(customerRowHTML);
+      }
+    });
+  },
+
+  handleAddCustomer(element) {
+    const Name = element.querySelector('.name-field').value.trim();
+    const Age = parseInt(element.querySelector('.age-field').value);
+    const Address = element.querySelector('.address-field').value.trim();
+    const Country = parseInt(element.querySelector('.country-field').value);
+    const Married = element.querySelector('.married-field').checked;
+
+    if (Name != '' && Age != '' && Address != '' && Country > 0) {
+      const newCustomer = { Name, Age, Country, Address, Married };
+      let isDuplicateCustomer = this.JSONData.findIndex((customer) => this.deepEqualObj(customer, newCustomer));
+
+      if (isDuplicateCustomer === -1) {
+        this.JSONData.unshift(newCustomer);
+        this.loadPagination();
+        this.loadData();
+        this.clearDataInput();
+        this.currentPage = 1;
+      }
+    }
+  },
+
+  handleUIEdit(customerRowHTML, customerEditedHTML = null) {
+    this.bgChoosingItem = customerRowHTML.innerHTML;
+
+    if (!customerEditedHTML) {
+      const searchIndex = this.dataShow.findIndex(
+        (customer) => customer === this.dataShow[customerRowHTML.dataset.customer],
+      );
+      if (searchIndex != -1) {
+        this.choosingItem = this.dataShow[searchIndex];
+      }
+    }
+
+    if (Object.keys(this.choosingItem).length !== 0) {
+      let countryDropdown = this.countryData
+        .map((item) => {
+          return `<option value=${item.Id} ${item.Id == this.choosingItem.Country ? 'selected' : ''}>${
+            item.Name
+          }</option>`;
+        })
+        .join('');
+
+      customerRowHTML.innerHTML =
+        customerEditedHTML ||
+        ` 
+            <tr>
+              <td class="text-center">
+                <input type="text" class="filter-name" value='${this.choosingItem.Name}' data-customer-value=${
+          this.choosingItem.Name
+        }>
+              </td>
+              <td>
+                <input type="number" min=0 class="filter-age" value=${this.choosingItem.Age} data-customer-value=${
+          this.choosingItem.Age
+        }>
+              </td>
+              <td class="text-center">
+              <select class="filter-country">
+              ${countryDropdown}
+              </select>
+              </td>
+              <td>
+                <input type="text" class="filter-address address-field" value='${this.choosingItem.Address}'>
+              </td>
+              <td class="text-center">
+                <input type="checkbox" class="filter-married" ${this.choosingItem.Married ? 'checked' : ''}>
+              </td>
+              <td class="text-center">
+              <button class="action-btn confirm-edit-btn"><i class="fas fa-check"></i></button>
+              <button class="action-btn remove-edit-btn"><i class="fas fa-times"></i></button>
+              </td>
+            </tr>
+          `;
+    }
+  },
+
+  handleEditCustomer(container) {
+    const Name = container.querySelector('.filter-name').value;
+    const Age = parseInt(container.querySelector('.filter-age').value);
+    const Address = container.querySelector('.filter-address').value;
+    const Country = parseInt(container.querySelector('.filter-country').value);
+    const Married = container.querySelector('.filter-married').checked;
+    const totalCustomer = this.dataShow.length;
+
+    for (let i = 0; i < totalCustomer; i++) {
+      if (this.dataShow[i].Name === this.choosingItem.Name) {
+        this.dataShow[i] = {
+          Name,
+          Age,
+          Address,
+          Country,
+          Married,
+        };
+        break;
+      }
+    }
+
+    let html = `  
+      <tr class="customer">
+          <td class="name">${Name}</td>
+          <td class="text-center">${Age}</td>
+          <td>
+            ${this.countryData[Country].Name}
+          </td>
+          <td>${Address}</td>
+          <td class="text-center">
+              <input type="checkbox" name="married" ${Married ? 'checked' : ''} disabled/>
+          </td>
+          <td class="text-center">
+          <button class="action-btn edit-btn"><i class="fas fa-pencil-alt"></i></button>
+          <button class="action-btn delete-btn"><i class="fa fa-trash"></i></button>
+          </td>
+      </tr>
+      `;
+
+    this.handleUIEdit(container, html);
+  },
+
+  handleUISort(element, fieldName) {
+    this.sortBy.choose = fieldName;
+    this.sortBy[fieldName] = this.sortBy[fieldName] ? 0 : 1; // check sort asc / desc
+
+    // hide all icon sorting in thead
+    for (let key in this.JSONData[0]) {
+      if (key !== this.sortBy.choose) {
+        this.rootElement.querySelector(`th[data-sort=${key}]`).childNodes[1].classList.add('hidden');
+      }
+    }
+
+    // toggle sort icon
+    element.querySelector('.sort-icon').classList.remove('hidden');
+    if (this.sortBy[fieldName] === 0) {
+      element.querySelector('.sort-icon i').classList.add('fa-caret-up');
+      element.querySelector('.sort-icon i').classList.remove('fa-caret-down');
+    } else {
+      element.querySelector('.sort-icon i').classList.remove('fa-caret-up');
+      element.querySelector('.sort-icon i').classList.add('fa-caret-down');
+    }
+  },
+
+  sortAscending(fieldName) {
+    return (a, b) => (a[fieldName] > b[fieldName] ? 1 : -1);
+  },
+  sortDescending(fieldName) {
+    return (b, a) => (a[fieldName] > b[fieldName] ? 1 : -1);
+  },
+
+  sortByField(fieldName) {
+    if (this.sortBy[fieldName] === 0) {
+      this.dataShow = [...this.dataShow].sort(this.sortAscending(fieldName));
+      this.currentPage = 1;
+      this.loadPagination();
+      this.loadData();
+    }
+
+    if (this.sortBy[fieldName] === 1) {
+      this.dataShow = [...this.dataShow].sort(this.sortDescending(fieldName));
+      this.currentPage = 1;
+      this.loadPagination();
+      this.loadData();
+    }
+  },
+
+  clearDataInput() {
+    this.rootElement.querySelector('.name-field').value = '';
+    this.rootElement.querySelector('.age-field').value = '';
+    this.rootElement.querySelector('.country-field').value = 0;
+    this.rootElement.querySelector('.address-field').value = '';
+    this.rootElement.querySelector('.married-field').checked = false;
+  },
+
+  filterCustomer() {
+    const fieldName = this.rootElement.querySelector('.name-field').value.trim();
+    const fieldAge = this.rootElement.querySelector('.age-field').value;
+    const fieldCountry = this.rootElement.querySelector('.country-field').value;
+    const fieldAddress = this.rootElement.querySelector('.address-field').value.trim();
+    const fieldMarried = this.indeterminateCheckbox;
+
+    this.setDataShow(this.JSONData); // reset filter
+
+    // filter query
+    if (fieldName != '') {
+      this.dataShow = this.dataShow.filter((item) => item.Name.toLowerCase().includes(fieldName.toLowerCase()));
+    }
+
+    if (fieldAge > 0) {
+      this.dataShow = this.dataShow.filter((item) => item.Age == fieldAge);
+    }
+
+    if (fieldCountry > 0) {
+      this.dataShow = this.dataShow.filter((item) => item.Country == fieldCountry);
+    }
+
+    if (fieldAddress != '') {
+      this.dataShow = this.dataShow.filter((item) => item.Address.toLowerCase().includes(fieldAddress.toLowerCase()));
+    }
+
+    if (fieldMarried != 1) {
+      this.dataShow = this.dataShow.filter((item) => item.Married == (this.indeterminateCheckbox === 0 ? false : true));
+    }
+
+    this.currentPage = 1;
+    this.loadPagination();
+    this.loadData();
+  },
+
+  handleClearFilter() {
+    this.clearDataInput();
+    this.setDataShow(this.JSONData);
+    this.currentPage = 1;
+    this.loadPagination();
+    this.loadData();
+  },
+
+  deepEqualObj(objFirst, objSecond) {
+    const objKeys = Object.keys;
+    const typeOfX = typeof objFirst;
+    const typeOfY = typeof objSecond;
+
+    return objFirst && objSecond && typeOfX === 'object' && typeOfX === typeOfY
+      ? objKeys(objFirst).length === objKeys(objSecond).length &&
+          objKeys(objFirst).every((key) => this.deepEqualObj(objFirst[key], objSecond[key]))
+      : objFirst === objSecond;
+  },
+
+  deleteCustomer(customerPosition, currentPage) {
+    if (confirm('Are you sure delete this customer ?') === true) {
+      const amountRowRemaining = this.rootElement.querySelectorAll('tbody tr').length;
+
+      this.JSONData.splice(
+        this.JSONData.findIndex((customer) => customer === this.dataShow[customerPosition]),
+        1,
+      );
+      this.setDataShow(this.JSONData);
+
+      // if current page remaining 1 row -> delete row => redirect prev page
+      if (amountRowRemaining === 1 && currentPage > 1) {
+        this.currentPage = currentPage - 1;
+      }
+
+      // while user is editing 1 row, user delete another row, reset active edit status
+      this.editActive = 0;
+
+      this.loadPagination();
+      this.loadData();
+    }
+  },
+
+  render() {
+    this.renderSelectPageSize();
+    this.renderTableLayout();
+    this.renderHeadRow();
+    this.renderSearchRow();
+    this.renderAddRow();
+    this.renderPaginationLayout();
+    this.renderPaginationNumber();
+  },
+
+  init(rootElement) {
+    this.setDataShow(this.JSONData);
+    this.setRootElementRender(rootElement);
+    this.render();
+    this.loadData();
+    this.addEventOnInit();
   },
 };
+
 function init() {
-  tableCustomer.init();
+  tableCustomer.init('#root');
 }
 
 init();
-
-let totalPages = Math.ceil(tableCustomer.JSONData.length / tableCustomer.size);
-
-$('.pagination ul').innerHTML = createPagination(totalPages, tableCustomer.page);
-
-function createPagination(totalPages, page) {
-  let liTag = '';
-  let active;
-  let beforePage = page - 1;
-  let afterPage = page + 1;
-
-  tableCustomer.setSelectPage(page);
-  tableCustomer.renderData();
-
-  if (page > 1) {
-    //show the prev button if the page value is greater than 1
-    liTag += `<li class="btn prev" onclick="createPagination(totalPages, ${
-      page - 1
-    })"><span><i class="fas fa-angle-left"></i> Prev</span></li>`;
-  }
-
-  if (page > 2) {
-    //if page value is less than 2 then add 1 after the previous button
-    liTag += `<li class="first numb" onclick="createPagination(totalPages, 1)"><span>1</span></li>`;
-    if (page > 3) {
-      //if page value is greater than 3 then add this (...) after the first li or page
-      liTag += `<li class="dots"><span>...</span></li>`;
-    }
-  }
-
-  // how many pages or li show before the current li
-  if (page == totalPages) {
-    beforePage = beforePage - 2;
-  } else if (page == totalPages - 1) {
-    beforePage = beforePage - 1;
-  }
-  // how many pages or li show after the current li
-  if (page == 1) {
-    afterPage = afterPage + 2;
-  } else if (page == 2) {
-    afterPage = afterPage + 1;
-  }
-
-  for (var plength = beforePage; plength <= afterPage; plength++) {
-    if (plength > totalPages) {
-      //if plength is greater than totalPage length then continue
-      continue;
-    }
-    if (plength == 0) {
-      //if plength is 0 than add +1 in plength value
-      plength = plength + 1;
-    }
-    if (page == plength) {
-      //if page is equal to plength than assign active string in the active variable
-      active = 'active';
-    } else {
-      //else leave empty to the active variable
-      active = '';
-    }
-    liTag += `<li class="numb ${active}" onclick="createPagination(totalPages, ${plength})"><span>${plength}</span></li>`;
-  }
-
-  if (page < totalPages - 1) {
-    //if page value is less than totalPage value by -1 then show the last li or page
-    if (page < totalPages - 2) {
-      //if page value is less than totalPage value by -2 then add this (...) before the last li or page
-      liTag += `<li class="dots"><span>...</span></li>`;
-    }
-    liTag += `<li class="last numb" onclick="createPagination(totalPages, ${totalPages})"><span>${totalPages}</span></li>`;
-  }
-
-  if (page < totalPages) {
-    //show the next button if the page value is less than totalPage(20)
-    liTag += `<li class="btn next" onclick="createPagination(totalPages, ${
-      page + 1
-    })"><span>Next <i class="fas fa-angle-right"></i></span></li>`;
-  }
-
-  $('.pagination ul').innerHTML = liTag; //add li tag inside ul tag
-  $('.pagination').insertAdjacentHTML('afterend', `<p>${page} of ${totalPages}</p>`);
-  return liTag; //reurn the li tag
-}
